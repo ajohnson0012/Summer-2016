@@ -1,3 +1,15 @@
+/**
+ *  Summer Research 2016
+ *  Author: Alex Johnson
+ *  - with assistance/guidance from Professor Kapralos
+ *
+ *  The goal of this research is to develop a program, that given the
+ *  geographical coordinates of the current position and a final destination,
+ *  and data taken from sensors describing the surroundings, can guide a robot
+ *  to the final destination if possible. Currently the program is simulating
+ *  this process by hard-coding a map and simplifying the sensor shape.
+**/
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -9,23 +21,7 @@ const int SENSORDEPTH = 3;
 const int SENSORWIDTH = 1;
 const char SENSORSHAPE = 'l';
 
-/*char** createMap(char map[10][10]) {
-  map = 
-  {
-    {' ',' ','X',' ',' ',' ',' ',' ','X','F'},
-    {' ',' ',' ',' ',' ',' ',' ',' ','X',' '},
-    {' ',' ',' ',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {'0',' ','X',' ',' ',' ',' ',' ',' ',' '},
-  };
-  return map;
-}*/
-
+/* Find the current position */
 void findPos(int* x, int* y, char map[MAPHEIGHT][MAPWIDTH]) {
   for(int i=0;i<10;i++){
     for(int j=0;j<10;j++){
@@ -37,6 +33,7 @@ void findPos(int* x, int* y, char map[MAPHEIGHT][MAPWIDTH]) {
   }
 }
 
+/* Find the final destination */
 void findFin(int* x, int* y, char map[MAPHEIGHT][MAPWIDTH]) {
   for(int i=0;i<MAPHEIGHT;i++){
     for(int j=0;j<MAPWIDTH;j++){
@@ -48,6 +45,7 @@ void findFin(int* x, int* y, char map[MAPHEIGHT][MAPWIDTH]) {
   }
 }
 
+/* Create an array that shows the line of sight */
 int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[SENSORDEPTH*2+1][SENSORDEPTH*2+1]) {
   int speed = 0;
   char arc = 'a';
@@ -152,6 +150,7 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
   return speed;
 }
 
+/* Determine which way to aim based relationship between current and final positions */
 int aim(int x, int y, int fx, int fy) {
   //cout << "Current Position: (" << x << "," << y << ")" << endl;
   //cout << "Destination: (" << fx << "," << fy << ")" << endl;
@@ -173,6 +172,7 @@ int aim(int x, int y, int fx, int fy) {
   return bearing;
 }
 
+/* Determine the desired distance to travel */
 int howFar(int x, int y, int fx, int fy, int speed, int bearing) {
   int min = speed;
   switch(bearing) {
@@ -220,6 +220,7 @@ int howFar(int x, int y, int fx, int fy, int speed, int bearing) {
   return min;
 }
 
+/* Move the desired distance and update the map */
 void move(int x, int y, int bearing, int distance, char map[MAPHEIGHT][MAPWIDTH]) {
   map[x][y] = ' ';
   switch(bearing) {
@@ -250,6 +251,7 @@ void move(int x, int y, int bearing, int distance, char map[MAPHEIGHT][MAPWIDTH]
   }
 }
 
+/* Print out current state of the map */
 void printMap(char map[MAPHEIGHT][MAPWIDTH]) {
   for (int i=0;i<MAPWIDTH;i++)
     cout << '-' << flush;
@@ -262,6 +264,7 @@ void printMap(char map[MAPHEIGHT][MAPWIDTH]) {
   }
 }
 
+/* Uses functions above to move to the final destination (with no obstacles) */
 void process(char map[MAPHEIGHT][MAPWIDTH]) {
   int x,y,fx,fy;
   findPos(&x,&y,map);
