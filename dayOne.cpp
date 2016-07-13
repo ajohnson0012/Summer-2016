@@ -65,9 +65,12 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
     case 'l':
     switch(bearing) {
       case 0:
+      if((x-1)<0)
+        speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if((x-k)<0)
+        if((x-k)<0) {
           break;
+        }
         vision[i-k][j] = map[x-k][y];
         if (map[x-k][y] == 'X')
           break;
@@ -75,9 +78,12 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
       }
       break;
       case 1:
+      if(((x-1)<0)||((y+1)>(MAPWIDTH-1)))
+        speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if(((x-k)<0)||((y+k)>(MAPWIDTH-1)))
+        if(((x-k)<0)||((y+k)>(MAPWIDTH-1))) {
           break;
+        }
         vision[i-k][j+k] = map[x-k][y+k];
         if (map[x-k][y+k] == 'X')
           break;
@@ -85,9 +91,12 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
       }
       break;
       case 2:
+      if((y+1)>(MAPWIDTH-1))
+        speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if((y+k)>(MAPWIDTH-1))
+        if((y+k)>(MAPWIDTH-1)) {
           break;
+        }
         vision[i][j+k] = map[x][y+k];
         if (map[x][y+k] == 'X')
           break;
@@ -95,9 +104,12 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
       }
       break;
       case 3:
+      if(((x+1)>(MAPHEIGHT-1))||((y+1)>(MAPWIDTH-1)))
+        speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if(((x+k)>(MAPHEIGHT-1))||((y+k)>(MAPWIDTH-1)))
+        if(((x+k)>(MAPHEIGHT-1))||((y+k)>(MAPWIDTH-1))) {
           break;
+        }
         vision[i+k][j+k] = map[x+k][y+k];
         if (map[x+k][y+k] == 'X')
           break;
@@ -105,9 +117,12 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
       }
       break;
       case 4:
+      if((x+1)>(MAPHEIGHT-1))
+        speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if((x+k)>(MAPHEIGHT-1))
+        if((x+k)>(MAPHEIGHT-1)) {
           break;
+        }
         vision[i+k][j] = map[x+k][y];
         if (map[x+k][y] == 'X')
           break;
@@ -115,9 +130,12 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
       }
       break;
       case 5:
+      if(((x+1)>(MAPHEIGHT))||((y-1)<0))
+        speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if(((x+k)>(MAPHEIGHT))||((y-k)<0))
+        if(((x+k)>(MAPHEIGHT))||((y-k)<0)) {
           break;
+        }
         vision[i+k][j-k] = map[x+k][y-k];
         if (map[x+k][y-k] == 'X')
           break;
@@ -125,9 +143,12 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
       }
       break;
       case 6:
+      if((y-1)<0)
+        speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if((y-k)<0)
+        if((y-k)<0) {
           break;
+        }
         vision[i][j-k] = map[x][y-k];
         if (map[x][y-k] == 'X')
           break;
@@ -135,9 +156,12 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
       }
       break;
       case 7:
+      if(((x-1)<0)||((y-1)<0))
+        speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if(((x-k)<0)||((y-k)<0))
+        if(((x-k)<0)||((y-k)<0)) {
           break;
+        }
         vision[i-k][j-k] = map[x-k][y-k];
         if (map[x-k][y-k] == 'X')
           break;
@@ -375,16 +399,17 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
     int course = aim(x,y,fx,fy);
     int speed = sight(x,y,course,map,vision);
     int length = howFar(x,y,fx,fy,speed,course);
-    //cout << "Old Direction: " << course << endl;
+    cout << "Old Direction: " << course << endl;
     if(length==0) {
       int oldCourse = course;
       int oldX = x;
       int oldY = y;
       int turn = redirect(x,y,fx,fy,&course);
-      //cout << "New Direction: " << course << endl;
-      while(course!=oldCourse) {
+      cout << "New Direction: " << course << endl;
+      while((course!=oldCourse)&&((x!=fx)||(y!=fy))) {
+        choice:
         if(turn==0) {
-          cout << "Turn Left" << endl;
+          cout << "Hugging Right..." << endl;
           course = (course+1)%8;
           int sp = sight(x,y,course,map,vision);
           while(sp>0) {
@@ -393,6 +418,29 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
           }
           course = (course+7)%8;
           sp = sight(x,y,course,map,vision);
+          if(sp==-1) {
+            /*course = (course+4)%8;
+            while((x!=oldX)||(y!=oldY)) {
+              cout << "Hugging Left..." << endl;
+              course = (course+7)%8;
+              int sp = sight(x,y,course,map,vision);
+              while(sp>0) {
+                course = (course+7)%8;
+                sp = sight(x,y,course,map,vision);
+              }
+              course = (course+1)%8;
+              sp = sight(x,y,course,map,vision);
+              while(sp==0) {
+                course = (course+1)%8;
+                sp = sight(x,y,course,map,vision);
+              }
+              move(&x,&y,course,1,map);
+              printMap(map);
+            }*/
+            course = (course+1)%8;
+            turn = 1;
+            goto choice;
+          }
           cout << course << endl;
           while(sp==0) {
             course = (course+7)%8;
@@ -402,7 +450,7 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
           printMap(map);
         }
         else if(turn==1) {
-          cout << "Turn Right" << endl;
+          cout << "Hugging Left..." << endl;
           course = (course+7)%8;
           int sp = sight(x,y,course,map,vision);
           while(sp>0) {
@@ -411,6 +459,29 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
           }
           course = (course+1)%8;
           sp = sight(x,y,course,map,vision);
+          if(sp==-1) {
+            /*course = (course+4)%8;
+            while((x!=oldX)||(y!=oldY)) {
+              cout << "Hugging Right..." << endl;
+              course = (course+1)%8;
+              int sp = sight(x,y,course,map,vision);
+              while(sp>0) {
+                course = (course+1)%8;
+                sp = sight(x,y,course,map,vision);
+              }
+              course = (course+7)%8;
+              sp = sight(x,y,course,map,vision);
+              while(sp==0) {
+                course = (course+7)%8;
+                sp = sight(x,y,course,map,vision);
+              }
+              move(&x,&y,course,1,map);
+              printMap(map);
+            }*/
+            course = (course+7)%8;
+            turn = 0;
+            goto choice;
+          }
           while(sp==0) {
             course = (course+1)%8;
             sp = sight(x,y,course,map,vision);
@@ -420,8 +491,10 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
         }
       }
     }
-    move(&x,&y,course,length,map);
-    printMap(map);
+    else {
+      move(&x,&y,course,length,map);
+      printMap(map);
+    }
     //findPos(&x,&y,map);
     //findFin(&fx,&fy,map);
   }
@@ -431,7 +504,7 @@ int main() {
   //char vision[2*SENSORDEPTH+1][2*SENSORDEPTH+1];
   char map[MAPHEIGHT][MAPWIDTH] = 
   {
-    {' ',' ','X',' ',' ',' ',' ','F','X',' '},
+    {' ',' ','X',' ',' ',' ',' ',' ','X','F'},
     {' ',' ',' ',' ',' ',' ',' ',' ','X',' '},
     {' ',' ',' ',' ',' ',' ',' ',' ',' ',' '},
     {' ','X','X',' ',' ',' ',' ',' ',' ',' '},
