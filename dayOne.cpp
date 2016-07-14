@@ -13,6 +13,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 using namespace std;
 
 const int MAPHEIGHT = 10;
@@ -392,24 +393,19 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
   int x,y,fx,fy;
   findPos(&x,&y,map);
   findFin(&fx,&fy,map);
-  //cout << x << fx << endl;
-  //cout << y << fy << endl;
   char vision[2*SENSORDEPTH+1][2*SENSORDEPTH+1];
+  vector<int> oldX;
+  vector<int> oldY;
   while((x!=fx)||(y!=fy)) {
     int course = aim(x,y,fx,fy);
     int speed = sight(x,y,course,map,vision);
     int length = howFar(x,y,fx,fy,speed,course);
-    cout << "Old Direction: " << course << endl;
     if(length==0) {
-      int oldCourse = course;
-      int oldX = x;
-      int oldY = y;
+      int goal = course;
       int turn = redirect(x,y,fx,fy,&course);
-      cout << "New Direction: " << course << endl;
-      while((course!=oldCourse)&&((x!=fx)||(y!=fy))) {
+      while((course!=goal)&&((x!=fx)||(y!=fy))) {
         choice:
         if(turn==0) {
-          cout << "Hugging Right..." << endl;
           course = (course+1)%8;
           int sp = sight(x,y,course,map,vision);
           while(sp>0) {
@@ -418,39 +414,27 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
           }
           course = (course+7)%8;
           sp = sight(x,y,course,map,vision);
+          while(sp==0) {
+            course = (course+7)%8;
+            sp = sight(x,y,course,map,vision);
+          }
           if(sp==-1) {
-            /*course = (course+4)%8;
-            while((x!=oldX)||(y!=oldY)) {
-              cout << "Hugging Left..." << endl;
-              course = (course+7)%8;
-              int sp = sight(x,y,course,map,vision);
-              while(sp>0) {
-                course = (course+7)%8;
-                sp = sight(x,y,course,map,vision);
-              }
-              course = (course+1)%8;
-              sp = sight(x,y,course,map,vision);
-              while(sp==0) {
-                course = (course+1)%8;
-                sp = sight(x,y,course,map,vision);
-              }
-              move(&x,&y,course,1,map);
-              printMap(map);
-            }*/
             course = (course+1)%8;
             turn = 1;
             goto choice;
           }
-          cout << course << endl;
-          while(sp==0) {
-            course = (course+7)%8;
-            sp = sight(x,y,course,map,vision);
-          }
           move(&x,&y,course,1,map);
+          int goal = aim(x,y,fx,fy);
           printMap(map);
+          for(int i=0;i<oldX.size();i++) {
+            if((x==oldX.at(i))&&(y==oldY.at(i))) {
+              course = (course+2)%8;
+              turn = 0;
+              goto choice;
+            }
+          }
         }
         else if(turn==1) {
-          cout << "Hugging Left..." << endl;
           course = (course+7)%8;
           int sp = sight(x,y,course,map,vision);
           while(sp>0) {
@@ -459,78 +443,51 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
           }
           course = (course+1)%8;
           sp = sight(x,y,course,map,vision);
-          if(sp==-1) {
-            /*course = (course+4)%8;
-            while((x!=oldX)||(y!=oldY)) {
-              cout << "Hugging Right..." << endl;
-              course = (course+1)%8;
-              int sp = sight(x,y,course,map,vision);
-              while(sp>0) {
-                course = (course+1)%8;
-                sp = sight(x,y,course,map,vision);
-              }
-              course = (course+7)%8;
-              sp = sight(x,y,course,map,vision);
-              while(sp==0) {
-                course = (course+7)%8;
-                sp = sight(x,y,course,map,vision);
-              }
-              move(&x,&y,course,1,map);
-              printMap(map);
-            }*/
-            course = (course+7)%8;
-            turn = 0;
-            goto choice;
-          }
           while(sp==0) {
             course = (course+1)%8;
             sp = sight(x,y,course,map,vision);
           }
+          if(sp==-1) {
+            course = (course+7)%8;
+            turn = 0;
+            goto choice;
+          }
           move(&x,&y,course,1,map);
+          int goal = aim(x,y,fx,fy);
           printMap(map);
+          for(int i=0;i<oldX.size();i++) {
+            if((x==oldX.at(i))&&(y==oldY.at(i))) {
+              course = (course+6)%8;
+              turn = 0;
+              goto choice;
+            }
+          }
         }
       }
+      oldX.push_back(x);
+      oldY.push_back(y);
     }
     else {
       move(&x,&y,course,length,map);
       printMap(map);
     }
-    //findPos(&x,&y,map);
-    //findFin(&fx,&fy,map);
   }
 }
 
 int main() {
-  //char vision[2*SENSORDEPTH+1][2*SENSORDEPTH+1];
   char map[MAPHEIGHT][MAPWIDTH] = 
   {
     {' ',' ','X',' ',' ',' ',' ',' ','X','F'},
-    {' ',' ',' ',' ',' ',' ',' ',' ','X',' '},
-    {' ',' ',' ',' ',' ',' ',' ',' ',' ',' '},
-    {' ','X','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ',' ',' ',' ',' '},
-    {'C',' ','X',' ',' ',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ','X',' ','X',' '},
+    {' ',' ',' ',' ',' ',' ','X',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ','X',' ',' ',' '},
+    {' ',' ',' ','X',' ',' ','X',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ','X',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ','X',' ',' ',' '},
+    {' ','X',' ',' ',' ',' ','X',' ',' ',' '},
+    {' ','X','X','X','X','X','X',' ',' ',' '},
+    {'C',' ',' ',' ','X',' ',' ',' ',' ',' '},
   };
-  /*int x,y,fx,fy;
-  findPos(&x,&y,map);
-  findFin(&fx,&fy,map);
-  int course = aim(x,y,fx,fy);
-  int speed = sight(x,y,course,map,vision);
-  for(int i=0;i<(2*SENSORDEPTH)+1;i++) {
-    for(int j=0;j<(2*SENSORDEPTH)+1;j++) {
-      cout << vision[i][j] << flush;
-    }
-    cout << "" << endl;
-  }
-  cout << "Open: " << speed << endl;
-  int length = howFar(x,y,fx,fy,speed,course);
-  cout << "Travel: " << length << endl;
-  move(x,y,course,length,map);
-  printMap(map);*/
   printMap(map);
   process(map);
   
