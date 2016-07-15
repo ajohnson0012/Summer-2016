@@ -14,6 +14,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <random>
 using namespace std;
 
 const int MAPHEIGHT = 10;
@@ -21,6 +22,27 @@ const int MAPWIDTH = 10;
 const int SENSORDEPTH = 3;
 const int SENSORWIDTH = 1;
 const char SENSORSHAPE = 'l';
+
+void createMap(char map[MAPHEIGHT][MAPWIDTH]) {
+  int marker;
+  random_device rd;
+  for(int i=0;i<MAPHEIGHT;i++) {
+    for(int j=0;j<MAPWIDTH;j++) {
+      marker = rd()%10;
+      if(marker<=3) map[i][j]='X';
+      else map[i][j]=' ';
+    }
+  }
+  int x,y,fx,fy;
+  fx = rd()%MAPHEIGHT;
+  fy = rd()%MAPWIDTH;
+  do {
+    x = rd()%MAPHEIGHT;
+    y = rd()%MAPWIDTH;
+  } while((x==fx)&&(y==fy));
+  map[x][y] = 'C';
+  map[fx][fy] = 'F';
+}
 
 /* Find the current position */
 void findPos(int* x, int* y, char map[MAPHEIGHT][MAPWIDTH]) {
@@ -131,10 +153,10 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
       }
       break;
       case 5:
-      if(((x+1)>(MAPHEIGHT))||((y-1)<0))
+      if(((x+1)>(MAPHEIGHT-1))||((y-1)<0))
         speed = -1;
       for(int k=1;k<=SENSORDEPTH;k++) {
-        if(((x+k)>(MAPHEIGHT))||((y-k)<0)) {
+        if(((x+k)>(MAPHEIGHT-1))||((y-k)<0)) {
           break;
         }
         vision[i+k][j-k] = map[x+k][y-k];
@@ -389,13 +411,14 @@ int redirect(int x, int y, int fx, int fy, int* bearing) {
 }
 
 /* Uses functions above to move to the final destination (with no obstacles) */
-void process(char map[MAPHEIGHT][MAPWIDTH]) {
+int process(char map[MAPHEIGHT][MAPWIDTH]) {
   int x,y,fx,fy;
   findPos(&x,&y,map);
   findFin(&fx,&fy,map);
   char vision[2*SENSORDEPTH+1][2*SENSORDEPTH+1];
   vector<int> oldX;
   vector<int> oldY;
+  int success = 1;
   while((x!=fx)||(y!=fy)) {
     int course = aim(x,y,fx,fy);
     int speed = sight(x,y,course,map,vision);
@@ -403,8 +426,15 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
     if(length==0) {
       int goal = course;
       int turn = redirect(x,y,fx,fy,&course);
-      while((course!=goal)&&((x!=fx)||(y!=fy))) {
+      int deadEnd = 0;
+      int startX = x;
+      int startY = y;
+      while(((sight(x,y,aim(x,y,fx,fy),map,vision)<=0)||(aim(x,y,fx,fy)==((course+4)%8)))&&((x!=fx)||(y!=fy))) {
         choice:
+        if(deadEnd==2) {
+          success = 0;
+          break;
+        }
         if(turn==0) {
           course = (course+1)%8;
           int sp = sight(x,y,course,map,vision);
@@ -421,18 +451,27 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
           if(sp==-1) {
             course = (course+1)%8;
             turn = 1;
+            deadEnd++;
             goto choice;
           }
           move(&x,&y,course,1,map);
           int goal = aim(x,y,fx,fy);
           printMap(map);
-          for(int i=0;i<oldX.size();i++) {
-            if((x==oldX.at(i))&&(y==oldY.at(i))) {
-              course = (course+2)%8;
-              turn = 0;
-              goto choice;
+          if(((x==startX)&&(y==startY))&&(deadEnd==0)) {
+            success = 0;
+            deadEnd = 2;
+            break;
+          }
+          if(deadEnd==0) {
+            for(int i=0;i<oldX.size();i++) {
+              if((x==oldX.at(i))&&(y==oldY.at(i))) {
+                course = (course+2)%8;
+                turn = 0;
+                goto choice;
+              }
             }
           }
+          cout << course << endl;
         }
         else if(turn==1) {
           course = (course+7)%8;
@@ -450,46 +489,62 @@ void process(char map[MAPHEIGHT][MAPWIDTH]) {
           if(sp==-1) {
             course = (course+7)%8;
             turn = 0;
+            deadEnd++;
             goto choice;
           }
           move(&x,&y,course,1,map);
           int goal = aim(x,y,fx,fy);
           printMap(map);
-          for(int i=0;i<oldX.size();i++) {
-            if((x==oldX.at(i))&&(y==oldY.at(i))) {
-              course = (course+6)%8;
-              turn = 0;
-              goto choice;
+          if(((x==startX)&&(y==startY))&&(deadEnd==0)) {
+            success = 0;
+            deadEnd = 2;
+            break;
+          }
+          if(deadEnd==0) {
+            for(int i=0;i<oldX.size();i++) {
+              if((x==oldX.at(i))&&(y==oldY.at(i))) {
+                course = (course+6)%8;
+                turn = 0;
+                goto choice;
+              }
             }
           }
+          cout << course << endl;
         }
       }
       oldX.push_back(x);
       oldY.push_back(y);
+      if(success==0) break;
     }
     else {
       move(&x,&y,course,length,map);
       printMap(map);
     }
   }
+  if(success==0) return 0;
+  else return 1;
 }
 
 int main() {
   char map[MAPHEIGHT][MAPWIDTH] = 
   {
-    {' ',' ','X',' ',' ',' ',' ',' ','X','F'},
-    {' ',' ',' ',' ',' ',' ','X',' ','X',' '},
-    {' ',' ',' ',' ',' ',' ','X',' ',' ',' '},
-    {' ',' ',' ',' ',' ',' ','X',' ',' ',' '},
-    {' ',' ',' ','X',' ',' ','X',' ',' ',' '},
-    {' ',' ',' ',' ',' ',' ','X',' ',' ',' '},
-    {' ',' ',' ',' ',' ',' ','X',' ',' ',' '},
-    {' ','X',' ',' ',' ',' ','X',' ',' ',' '},
-    {' ','X','X','X','X','X','X',' ',' ',' '},
-    {'C',' ',' ',' ','X',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ','X',' ',' ',' ',' '},
+    {' ',' ','X',' ',' ',' ','X',' ','X',' '},
+    {' ',' ',' ',' ',' ',' ',' ','X','X',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' ','X',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' ','X',' '},
+    {' ',' ',' ','X','X','X','X',' ','X','X'},
+    {' ',' ','X',' ',' ','C','X',' ','F',' '},
+    {' ',' ',' ','X',' ',' ','X',' ','X',' '},
+    {'X','X',' ',' ',' ','X','X','X','X',' '},
+    {' ','X',' ',' ',' ','X',' ',' ','X',' '},
   };
+  //createMap(map);
   printMap(map);
-  process(map);
-  
+  int result = process(map);
+  for(int i=0;i<MAPWIDTH;i++) cout << "-" << flush;
+  cout << "" << endl;
+  if(result==1) cout << "The object has reached its destination successfully." << endl;
+  else cout << "The object was unable to reach the destination from its origin." << endl;
   return 0;
 }
