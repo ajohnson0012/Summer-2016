@@ -426,14 +426,34 @@ int process(char map[MAPHEIGHT][MAPWIDTH]) {
     if(length==0) {
       int goal = course;
       int turn = redirect(x,y,fx,fy,&course);
+      int startX[] = {x,x,x};
+      int startY[] = {y,y,y};
+      switch(goal) {
+        case 1:
+        startX[1]--;
+        startY[2]++;
+        break;
+        case 3:
+        startX[1]++;
+        startY[2]++;
+        break;
+        case 5:
+        startX[1]++;
+        startY[2]--;
+        break;
+        case 7:
+        startX[1]--;
+        startY[2]--;
+        break;
+      }
       int deadEnd = 0;
-      int startX = x;
-      int startY = y;
-      while(((sight(x,y,aim(x,y,fx,fy),map,vision)<=0)||(aim(x,y,fx,fy)==((course+4)%8)))&&((x!=fx)||(y!=fy))) {
+      int backTrack = 0;
+      int numMoves = 0;
+      while(((sight(x,y,aim(x,y,fx,fy),map,vision)<=0)||(aim(x,y,fx,fy)==((course+4)%8)))||(backTrack==1)) {
         choice:
         if(deadEnd==2) {
           success = 0;
-          break;
+          goto end;
         }
         if(turn==0) {
           course = (course+1)%8;
@@ -444,23 +464,39 @@ int process(char map[MAPHEIGHT][MAPWIDTH]) {
           }
           course = (course+7)%8;
           sp = sight(x,y,course,map,vision);
+          int spin = 0;
           while(sp==0) {
             course = (course+7)%8;
             sp = sight(x,y,course,map,vision);
+            spin++;
+            if(spin>8) {
+              success = 0;
+              goto end;
+            }
           }
           if(sp==-1) {
-            course = (course+1)%8;
+            while(sight(x,y,course,map,vision)!=0)
+              course = (course+1)%8;
             turn = 1;
             deadEnd++;
+            backTrack = 1;
             goto choice;
           }
           move(&x,&y,course,1,map);
+          numMoves++;
+          for(int i=0;i<3;i++) {
+            if((x==startX[i])&&(y==startY[i])) backTrack = 0;
+          }
           int goal = aim(x,y,fx,fy);
           printMap(map);
-          if(((x==startX)&&(y==startY))&&(deadEnd==0)) {
-            success = 0;
-            deadEnd = 2;
-            break;
+          for(int i=0;i<3;i++) {
+            //cout << x << " " << startX[i] << endl;
+            //cout << y << " " << startY[i] << endl;
+            if(((x==startX[i])&&(y==startY[i]))&&(deadEnd==0)&&(numMoves>1)) {
+              //cout << "HEY" << endl;
+              success = 0;
+              goto end;
+            }
           }
           if(deadEnd==0) {
             for(int i=0;i<oldX.size();i++) {
@@ -471,7 +507,6 @@ int process(char map[MAPHEIGHT][MAPWIDTH]) {
               }
             }
           }
-          cout << course << endl;
         }
         else if(turn==1) {
           course = (course+7)%8;
@@ -482,23 +517,34 @@ int process(char map[MAPHEIGHT][MAPWIDTH]) {
           }
           course = (course+1)%8;
           sp = sight(x,y,course,map,vision);
+          int spin = 0;
           while(sp==0) {
             course = (course+1)%8;
             sp = sight(x,y,course,map,vision);
+            if(spin>8) {
+              success = 0;
+              goto end;
+            }
           }
           if(sp==-1) {
-            course = (course+7)%8;
+            while(sight(x,y,course,map,vision)!=0)
+              course = (course+7)%8;
             turn = 0;
             deadEnd++;
+            backTrack = 1;
             goto choice;
           }
           move(&x,&y,course,1,map);
-          int goal = aim(x,y,fx,fy);
+          numMoves++;
+          for(int i=0;i<3;i++) {
+            if((x==startX[i])&&(y==startY[i])) backTrack = 0;
+          }
           printMap(map);
-          if(((x==startX)&&(y==startY))&&(deadEnd==0)) {
-            success = 0;
-            deadEnd = 2;
-            break;
+          for(int i=0;i<3;i++) {
+            if(((x==startX[i])&&(y==startY[i]))&&(deadEnd==0)&&(numMoves>1)) {
+              success = 0;
+              goto end;
+            }
           }
           if(deadEnd==0) {
             for(int i=0;i<oldX.size();i++) {
@@ -509,37 +555,37 @@ int process(char map[MAPHEIGHT][MAPWIDTH]) {
               }
             }
           }
-          cout << course << endl;
         }
       }
       oldX.push_back(x);
       oldY.push_back(y);
-      if(success==0) break;
+      if(success==0) goto end;
     }
     else {
       move(&x,&y,course,length,map);
       printMap(map);
     }
   }
+  end:
   if(success==0) return 0;
   else return 1;
 }
 
 int main() {
-  char map[MAPHEIGHT][MAPWIDTH] = 
+  char map[MAPHEIGHT][MAPWIDTH];/* = 
   {
-    {' ',' ',' ',' ',' ','X',' ',' ',' ',' '},
-    {' ',' ','X',' ',' ',' ','X',' ','X',' '},
-    {' ',' ',' ',' ',' ',' ',' ','X','X',' '},
-    {' ',' ',' ',' ',' ',' ',' ',' ','X',' '},
-    {' ',' ',' ',' ',' ',' ',' ',' ','X',' '},
-    {' ',' ',' ','X','X','X','X',' ','X','X'},
-    {' ',' ','X',' ',' ','C','X',' ','F',' '},
-    {' ',' ',' ','X',' ',' ','X',' ','X',' '},
-    {'X','X',' ',' ',' ','X','X','X','X',' '},
-    {' ','X',' ',' ',' ','X',' ',' ','X',' '},
-  };
-  //createMap(map);
+    {'X','X','X',' ',' ','X',' ',' ',' ',' '},
+    {'X','C','X',' ',' ',' ','X',' ','X',' '},
+    {'X','X','X',' ',' ',' ',' ','X','X',' '},
+    {'X','X','X',' ',' ',' ',' ',' ','X',' '},
+    {'X',' ','X',' ',' ',' ',' ',' ','X',' '},
+    {' ',' ',' ',' ',' ',' ','X',' ','X','X'},
+    {'X','X',' ',' ',' ',' ','X',' ',' ',' '},
+    {'X','X','X',' ','X',' ','X',' ','X',' '},
+    {' ',' ',' ','X',' ',' ',' ',' ',' ',' '},
+    {'X','F','X',' ','X','X','X',' ',' ',' '},
+  };*/
+  createMap(map);
   printMap(map);
   int result = process(map);
   for(int i=0;i<MAPWIDTH;i++) cout << "-" << flush;
