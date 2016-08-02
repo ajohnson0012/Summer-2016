@@ -22,8 +22,11 @@ const int MAPWIDTH = 10;
 const int SENSORDEPTH = 3;
 const int SENSORWIDTH = 1;
 const char SENSORSHAPE = 'l';
+char map[MAPHEIGHT][MAPWIDTH];
+int x, y;
+int fx, fy;
 
-void createMap(char map[MAPHEIGHT][MAPWIDTH]) {
+void createMap() {
   int marker;
   random_device rd;
   for(int i=0;i<MAPHEIGHT;i++) {
@@ -45,31 +48,31 @@ void createMap(char map[MAPHEIGHT][MAPWIDTH]) {
 }
 
 /* Find the current position */
-void findPos(int* x, int* y, char map[MAPHEIGHT][MAPWIDTH]) {
+void findPos() {
   for(int i=0;i<10;i++){
     for(int j=0;j<10;j++){
       if(map[i][j]=='C'){
-        *x=i;
-        *y=j;
+        x=i;
+        y=j;
       }
     }
   }
 }
 
 /* Find the final destination */
-void findFin(int* x, int* y, char map[MAPHEIGHT][MAPWIDTH]) {
+void findFin() {
   for(int i=0;i<MAPHEIGHT;i++){
     for(int j=0;j<MAPWIDTH;j++){
       if(map[i][j]=='F'){
-        *x=i;
-        *y=j;
+        fx=i;
+        fy=j;
       }
     }
   }
 }
 
 /* Create an array that shows the line of sight */
-int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[SENSORDEPTH*2+1][SENSORDEPTH*2+1]) {
+int sight(int bearing, char vision[SENSORDEPTH*2+1][SENSORDEPTH*2+1]) {
   int speed = 0;
   char arc = 'a';
   char stairs = 's';
@@ -198,7 +201,7 @@ int sight(int x, int y, int bearing, char map[MAPHEIGHT][MAPWIDTH], char vision[
 }
 
 /* Determine which way to aim based relationship between current and final positions */
-int aim(int x, int y, int fx, int fy) {
+int aim() {
   //cout << "Current Position: (" << x << "," << y << ")" << endl;
   //cout << "Destination: (" << fx << "," << fy << ")" << endl;
   int bearing = -1;
@@ -220,7 +223,7 @@ int aim(int x, int y, int fx, int fy) {
 }
 
 /* Determine the desired distance to travel */
-int howFar(int x, int y, int fx, int fy, int speed, int bearing) {
+int howFar(int speed, int bearing) {
   int min = speed;
   switch(bearing) {
     case 0:
@@ -268,50 +271,50 @@ int howFar(int x, int y, int fx, int fy, int speed, int bearing) {
 }
 
 /* Move the desired distance and update the map */
-void move(int* x, int* y, int bearing, int distance, char map[MAPHEIGHT][MAPWIDTH]) {
-  map[*x][*y] = ' ';
+void move(int bearing, int distance) {
+  map[x][y] = ' ';
   switch(bearing) {
     case 0:
-    *x-=distance;
-    map[*x][*y] = 'C';
+    x-=distance;
+    map[x][y] = 'C';
     break;
     case 1:
-    *x-=distance;
-    *y+=distance;
-    map[*x][*y] = 'C';
+    x-=distance;
+    y+=distance;
+    map[x][y] = 'C';
     break;
     case 2:
-    *y+=distance;
-    map[*x][*y] = 'C';
+    y+=distance;
+    map[x][y] = 'C';
     break;
     case 3:
-    *x+=distance;
-    *y+=distance;
-    map[*x][*y] = 'C';
+    x+=distance;
+    y+=distance;
+    map[x][y] = 'C';
     break;
     case 4:
-    *x+=distance;
-    map[*x][*y] = 'C';
+    x+=distance;
+    map[x][y] = 'C';
     break;
     case 5:
-    *x+=distance;
-    *y-=distance;
-    map[*x][*y] = 'C';
+    x+=distance;
+    y-=distance;
+    map[x][y] = 'C';
     break;
     case 6:
-    *y-=distance;
-    map[*x][*y] = 'C';
+    y-=distance;
+    map[x][y] = 'C';
     break;
     case 7:
-    *x-=distance;
-    *y-=distance;
-    map[*x][*y] = 'C';
+    x-=distance;
+    y-=distance;
+    map[x][y] = 'C';
     break;
   }
 }
 
 /* Print out current state of the map */
-void printMap(char map[MAPHEIGHT][MAPWIDTH]) {
+void printMap() {
   for(int i=0;i<MAPWIDTH;i++)
     cout << '-' << flush;
   cout << "" << endl;
@@ -323,7 +326,8 @@ void printMap(char map[MAPHEIGHT][MAPWIDTH]) {
   }
 }
 
-int redirect(int x, int y, int fx, int fy, int* bearing) {
+/* Changes course when it hits an obstacle based on destination */
+int redirect(int* bearing) {
   int turn;
   switch(*bearing) {
     case 0:
@@ -410,160 +414,173 @@ int redirect(int x, int y, int fx, int fy, int* bearing) {
   return turn;
 }
 
+/* Navigates around obstacles */
+int obstacle(vector<int> oldX, vector<int> oldY, char vision[2*SENSORDEPTH+1][2*SENSORDEPTH+1], int course) {
+  int success = 1;
+  int goal = course;
+  int turn = redirect(&course);
+  int startX[] = {x,x,x};
+  int startY[] = {y,y,y};
+  switch(goal) {
+    case 1:
+    startX[1]--;
+    startY[2]++;
+    break;
+    case 3:
+    startX[1]++;
+    startY[2]++;
+    break;
+    case 5:
+    startX[1]++;
+    startY[2]--;
+    break;
+    case 7:
+    startX[1]--;
+    startY[2]--;
+    break;
+  }
+  int deadEnd = 0;
+  int backTrack = 0;
+  int numMoves = 0;
+  while(((sight(aim(),vision)<=0)||(aim()==((course+4)%8)))||(backTrack==1)) {
+    choice:
+    if(deadEnd==2) {
+      success = 0;
+      return success;
+      //goto end;
+    }
+    if(turn==0) {
+      course = (course+1)%8;
+      int sp = sight(course,vision);
+      while(sp>0) {
+        course = (course+1)%8;
+        sp = sight(course,vision);
+      }
+      course = (course+7)%8;
+      sp = sight(course,vision);
+      int spin = 0;
+      while(sp==0) {
+        course = (course+7)%8;
+        sp = sight(course,vision);
+        spin++;
+        if(spin>8) {
+          success = 0;
+          return success;
+          //goto end;
+        }
+      }
+      if(sp==-1) {
+        while(sight(course,vision)!=0)
+          course = (course+1)%8;
+        turn = 1;
+        deadEnd++;
+        backTrack = 1;
+        goto choice;
+      }
+      move(course,1);
+      numMoves++;
+      for(int i=0;i<3;i++) {
+        if((x==startX[i])&&(y==startY[i])) backTrack = 0;
+      }
+      int goal = aim();
+      printMap();
+      for(int i=0;i<3;i++) {
+        //cout << x << " " << startX[i] << endl;
+        //cout << y << " " << startY[i] << endl;
+        if(((x==startX[i])&&(y==startY[i]))&&(deadEnd==0)&&(numMoves>1)) {
+          //cout << "HEY" << endl;
+          success = 0;
+          return success;
+          //goto end;
+        }
+      }
+      if(deadEnd==0) {
+        for(int i=0;i<oldX.size();i++) {
+          if((x==oldX.at(i))&&(y==oldY.at(i))) {
+            course = (course+2)%8;
+            turn = 1;
+            goto choice;
+          }
+        }
+      }
+    }
+    else if(turn==1) {
+      course = (course+7)%8;
+      int sp = sight(course,vision);
+      while(sp>0) {
+        course = (course+7)%8;
+        sp = sight(course,vision);
+      }
+      course = (course+1)%8;
+      sp = sight(course,vision);
+      int spin = 0;
+      while(sp==0) {
+        course = (course+1)%8;
+        sp = sight(course,vision);
+        if(spin>8) {
+          success = 0;
+          return success;
+          //goto end;
+        }
+      }
+      if(sp==-1) {
+        while(sight(course,vision)!=0)
+          course = (course+7)%8;
+        turn = 0;
+        deadEnd++;
+        backTrack = 1;
+        goto choice;
+      }
+      move(course,1);
+      numMoves++;
+      for(int i=0;i<3;i++) {
+        if((x==startX[i])&&(y==startY[i])) backTrack = 0;
+      }
+      printMap();
+      for(int i=0;i<3;i++) {
+        if(((x==startX[i])&&(y==startY[i]))&&(deadEnd==0)&&(numMoves>1)) {
+          success = 0;
+          return success;
+          //goto end;
+        }
+      }
+      if(deadEnd==0) {
+        for(int i=0;i<oldX.size();i++) {
+          if((x==oldX.at(i))&&(y==oldY.at(i))) {
+            course = (course+6)%8;
+            turn = 0;
+            goto choice;
+          }
+        }
+      }
+    }
+  }
+  oldX.push_back(x);
+  oldY.push_back(y);
+  return success; // goto end;
+}
+
 /* Uses functions above to move to the final destination (with no obstacles) */
-int process(char map[MAPHEIGHT][MAPWIDTH]) {
-  int x,y,fx,fy;
-  findPos(&x,&y,map);
-  findFin(&fx,&fy,map);
+int process() {
+  findPos();
+  findFin();
+  cout << x << " " << y << endl;
+  cout << fx << " " << fy << endl;
   char vision[2*SENSORDEPTH+1][2*SENSORDEPTH+1];
   vector<int> oldX;
   vector<int> oldY;
   int success = 1;
   while((x!=fx)||(y!=fy)) {
-    int course = aim(x,y,fx,fy);
-    int speed = sight(x,y,course,map,vision);
-    int length = howFar(x,y,fx,fy,speed,course);
+    int course = aim();
+    int speed = sight(course,vision);
+    int length = howFar(speed,course);
     if(length==0) {
-      int goal = course;
-      int turn = redirect(x,y,fx,fy,&course);
-      int startX[] = {x,x,x};
-      int startY[] = {y,y,y};
-      switch(goal) {
-        case 1:
-        startX[1]--;
-        startY[2]++;
-        break;
-        case 3:
-        startX[1]++;
-        startY[2]++;
-        break;
-        case 5:
-        startX[1]++;
-        startY[2]--;
-        break;
-        case 7:
-        startX[1]--;
-        startY[2]--;
-        break;
-      }
-      int deadEnd = 0;
-      int backTrack = 0;
-      int numMoves = 0;
-      while(((sight(x,y,aim(x,y,fx,fy),map,vision)<=0)||(aim(x,y,fx,fy)==((course+4)%8)))||(backTrack==1)) {
-        choice:
-        if(deadEnd==2) {
-          success = 0;
-          goto end;
-        }
-        if(turn==0) {
-          course = (course+1)%8;
-          int sp = sight(x,y,course,map,vision);
-          while(sp>0) {
-            course = (course+1)%8;
-            sp = sight(x,y,course,map,vision);
-          }
-          course = (course+7)%8;
-          sp = sight(x,y,course,map,vision);
-          int spin = 0;
-          while(sp==0) {
-            course = (course+7)%8;
-            sp = sight(x,y,course,map,vision);
-            spin++;
-            if(spin>8) {
-              success = 0;
-              goto end;
-            }
-          }
-          if(sp==-1) {
-            while(sight(x,y,course,map,vision)!=0)
-              course = (course+1)%8;
-            turn = 1;
-            deadEnd++;
-            backTrack = 1;
-            goto choice;
-          }
-          move(&x,&y,course,1,map);
-          numMoves++;
-          for(int i=0;i<3;i++) {
-            if((x==startX[i])&&(y==startY[i])) backTrack = 0;
-          }
-          int goal = aim(x,y,fx,fy);
-          printMap(map);
-          for(int i=0;i<3;i++) {
-            //cout << x << " " << startX[i] << endl;
-            //cout << y << " " << startY[i] << endl;
-            if(((x==startX[i])&&(y==startY[i]))&&(deadEnd==0)&&(numMoves>1)) {
-              //cout << "HEY" << endl;
-              success = 0;
-              goto end;
-            }
-          }
-          if(deadEnd==0) {
-            for(int i=0;i<oldX.size();i++) {
-              if((x==oldX.at(i))&&(y==oldY.at(i))) {
-                course = (course+2)%8;
-                turn = 0;
-                goto choice;
-              }
-            }
-          }
-        }
-        else if(turn==1) {
-          course = (course+7)%8;
-          int sp = sight(x,y,course,map,vision);
-          while(sp>0) {
-            course = (course+7)%8;
-            sp = sight(x,y,course,map,vision);
-          }
-          course = (course+1)%8;
-          sp = sight(x,y,course,map,vision);
-          int spin = 0;
-          while(sp==0) {
-            course = (course+1)%8;
-            sp = sight(x,y,course,map,vision);
-            if(spin>8) {
-              success = 0;
-              goto end;
-            }
-          }
-          if(sp==-1) {
-            while(sight(x,y,course,map,vision)!=0)
-              course = (course+7)%8;
-            turn = 0;
-            deadEnd++;
-            backTrack = 1;
-            goto choice;
-          }
-          move(&x,&y,course,1,map);
-          numMoves++;
-          for(int i=0;i<3;i++) {
-            if((x==startX[i])&&(y==startY[i])) backTrack = 0;
-          }
-          printMap(map);
-          for(int i=0;i<3;i++) {
-            if(((x==startX[i])&&(y==startY[i]))&&(deadEnd==0)&&(numMoves>1)) {
-              success = 0;
-              goto end;
-            }
-          }
-          if(deadEnd==0) {
-            for(int i=0;i<oldX.size();i++) {
-              if((x==oldX.at(i))&&(y==oldY.at(i))) {
-                course = (course+6)%8;
-                turn = 0;
-                goto choice;
-              }
-            }
-          }
-        }
-      }
-      oldX.push_back(x);
-      oldY.push_back(y);
+      success = obstacle(oldX, oldY, vision, course);
       if(success==0) goto end;
     }
     else {
-      move(&x,&y,course,length,map);
-      printMap(map);
+      move(course,length);
+      printMap();
     }
   }
   end:
@@ -572,22 +589,9 @@ int process(char map[MAPHEIGHT][MAPWIDTH]) {
 }
 
 int main() {
-  char map[MAPHEIGHT][MAPWIDTH];/* = 
-  {
-    {'X','X','X',' ',' ','X',' ',' ',' ',' '},
-    {'X','C','X',' ',' ',' ','X',' ','X',' '},
-    {'X','X','X',' ',' ',' ',' ','X','X',' '},
-    {'X','X','X',' ',' ',' ',' ',' ','X',' '},
-    {'X',' ','X',' ',' ',' ',' ',' ','X',' '},
-    {' ',' ',' ',' ',' ',' ','X',' ','X','X'},
-    {'X','X',' ',' ',' ',' ','X',' ',' ',' '},
-    {'X','X','X',' ','X',' ','X',' ','X',' '},
-    {' ',' ',' ','X',' ',' ',' ',' ',' ',' '},
-    {'X','F','X',' ','X','X','X',' ',' ',' '},
-  };*/
-  createMap(map);
-  printMap(map);
-  int result = process(map);
+  createMap();
+  printMap();
+  int result = process();
   for(int i=0;i<MAPWIDTH;i++) cout << "-" << flush;
   cout << "" << endl;
   if(result==1) cout << "The object has reached its destination successfully." << endl;
